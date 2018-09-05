@@ -1,0 +1,167 @@
+---
+
+# get ip address of the node
+- name:  Get IP address at eth1
+  setup:
+    filter: ansible_eth1.ipv4.address
+
+#Install Apache server with mod_ssl and mod_headers
+- name: Install the latest version Apache web server
+  yum: 
+    name: '{{ item }}'
+    state: latest
+    update_cache: yes
+  loop:
+    - httpd
+    - mod_ssl
+  notify:
+    - Enable apache server
+
+#Find and comment DocumentRoot line in /etc/httpd/conf/httpd.conf
+- name: 'Remove DocumentRoot line in Apache server {{ apache_httpd_conf }}'
+  lineinfile:
+    path: '{{ apache_httpd_conf }}'
+    regexp: '^DocumentRoot= "/var/www/html"'
+    state: absent
+    backup: yes
+
+#Set global ServerName in /etc/httpd/conf/httpd.conf
+- name: 'Set global ServerName line in Apache server'
+  lineinfile:
+    path: '{{ apache_httpd_conf }}'
+    line: 'ServerName {{ ansible_eth1.ipv4.address }}'
+    insertafter: '^#ServerName www.example.com:80'
+    backup: yes
+
+#Copy ssl.conf.j2 tempate to TLS directory
+- name: Create template based config for HTTPS and copy it into conf.d/
+  template:
+    src: ssl.conf.j2
+    dest: '{{ apache_home }}/conf.d/ssl.conf'
+    force: yes
+#  notify:
+#    - ApacheSyntaxChecker
+
+
+
+#Add apache user
+#Apache server will run under this user
+- name: 'Create a specific user called {{ apache_user }}, who controls Apache server'
+  user:
+    name: '{{ apache_user }}'
+    comment: Very limited user that only controls Apache Server
+
+
+ 
+
+#Change owner of Apache server directory to Apache user
+- name: 'Change owner o Apache Server directory to {{ apache_user }}'
+  file:
+    dest: '{{ apache_home }}'
+    owner: '{{ apache_user }}'
+    group: '{{ apache_user }}'
+    mode: 0755
+    recurse: yes
+
+#Ansible openssl requires python-pyOpenSSL library to be installed
+#python pip package managment is required to download python-pyOpenSSL
+- name: Install Python2.7 pip package managment
+  yum:
+    name: python-pip
+    state: latest
+
+#Install Python OpenSSL dependencies
+- name: Ensure python OpenSSL dependencies are installed.
+  pip:
+    name: pyOpenSSL
+    state: latest
+
+#Create TLS directory to store keys and certs
+- name: 'Create {{ tls_dir }} directory'
+  file:
+    dest: '{{ tls_dir }}'
+    state: directory
+    owner: '{{ apache_user }}'
+    group: '{{ apache_user }}'
+    mode: 0755 
+
+# Generate an OpenSSL private key (4096 bits, RSA)
+#python-pyOpenSSL library is required 
+- name: Generate an OpenSSL private key
+  openssl_privatekey:
+    path: '{{ tls_dir }}/privkey.pem'
+    owner: '{{ apache_user }}'
+    group: '{{ apache_user }}'
+    mode: 0600
+
+# Generate an OpenSSL Certificate Signing Request
+- openssl_csr:
+    path: '{{ tls_dir }}/csr.csr'
+    privatekey_path: '{{ tls_dir }}/privkey.pem'
+    common_name: '{{ ansible_eth1.ipv4.address }}'
+    country_name: SI
+    organization_name: Parsek
+
+#Generate certificate expire date: Today + 2 years
+- name: Generate certificate expire date in ASN.1 TIME format
+  command: "date +'%Y%m%d%H%M%SZ' -d '+730 days'"
+  register: expire_date
+    
+#Generate certificate
+- name: Generate a Self Signed OpenSSL certificate that expires in 2 years
+  openssl_certificate:
+    path: '{{ tls_dir }}/cert.crt'
+    privatekey_path: '{{ tls_dir }}/privkey.pem'
+    csr_path: '{{ tls_dir }}/csr.csr'
+    provider: selfsigned
+    selfsigned_not_after: '{{ expire_date.stdout }}'
+  notify:
+    - Restart apache server
+    
+ #Enable and start the firewalld service
+- name:  Turn on the firewalld service
+  service:
+    name: firewalld
+    state: started
+    enabled : yes
+    
+#Allow https service
+- name: 'Allow https service in firewall'
+  firewalld:
+    service: https
+    permanent: true
+    state: enabled
+
+#Open tls port
+- name: 'Open port {{ tls_port }} in firewall'
+  firewalld:
+    port: '{{ tls_port }}/tcp'
+    permanent: true
+    state: enabled
+
+#Allow http service
+- name: Allow http service in firewall
+  firewalld:
+    service: http
+    permanent: true
+    state: enabled
+
+#Open http port 80
+- name: Open port 80 in firewall
+  firewalld:
+    port: 80/tcp
+    permanent: true
+    state: enabled
+  notify:
+    - Firewall reload rules
+
+# following command on the server to allow apache to make outbound connections
+# reverse proxy to https will not work without this command
+- name: Allow apache to make outbound connections
+  command: /usr/sbin/setsebool -P httpd_can_network_connect 1
+
+
+
+    
+
+...

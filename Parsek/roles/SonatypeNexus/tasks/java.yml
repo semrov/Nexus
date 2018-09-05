@@ -1,0 +1,49 @@
+---
+
+#Unpack Java 1.8 archive
+- name: Unarchive and install Java 1.8 package
+  unarchive: 
+    src: '{{ synced_dir_path }}/{{ jdk_archive }}'
+    dest: '{{ usr_dir_path }}'
+
+#The alternatives command is used for maintained symbolic links.
+# used to maintain symbolic links for Java
+- name: Setup Java path using Alternatives 
+  alternatives:
+    name: java
+    link: /usr/bin/java
+    path: '{{ java_home }}/bin/java'
+    priority: 1
+- name: Setup javac path using Alternative
+  alternatives:
+    name: javac
+    link: /usr/bin/javac
+    path: '{{ java_home }}/bin/javac'
+    priority: 1
+- name: Setup jar path using Alternative
+  alternatives:
+    name: jar
+    link: /usr/bin/jar
+    path: '{{ java_home }}/bin/jar'
+    priority: 1
+
+# Set the Java environment variables
+- name: set java_home environment variable
+  lineinfile:
+    path: /etc/bashrc
+    line: 'export {{ export_java_home }}'
+- name: set jre_home environment variable
+  lineinfile:
+    path: /etc/bashrc
+    line: 'export {{ export_jre_home }}'
+- name: Update PATH environment variable with Java
+  lineinfile:
+    path: /etc/bashrc
+    line: 'export {{ export_path_java }}'
+
+
+
+
+
+
+...

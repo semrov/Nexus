@@ -1,0 +1,11 @@
+---
+# tasks file for SonatypeNexus
+
+# Install Java 8 and set symbolic links and environment variables
+- import_tasks: java.yml
+# Install Nexus Repository Manager 3 and set symbolic links and environment variables
+- import_tasks: nexus.yml
+# Install and configure Apache reverse proxy with ssl enabled
+- import_tasks: apache.yml
+
+...

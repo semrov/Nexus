@@ -1,0 +1,77 @@
+---
+
+#Create directory to install Nexus Repository Manager
+- name: Create directory '{{ nexus_home }}'
+  file:
+    path: '{{ nexus_home }}'
+    state: directory
+
+#Unpack Nexus archive
+- name: Unarchive and install Nexus Repository Manager 3 OSS package
+  unarchive: 
+    src: '{{ synced_dir_path }}/{{ nexus_archive }}'
+    dest: '{{ nexus_home }}'
+
+
+#Change listening port
+- name: "Set Nexus interface to listen on port {{ nexus_http_port }} "
+  lineinfile:
+    path: '{{ nexus_home }}/{{ nexus_app_dir }}/etc/nexus-default.properties'
+    regexp: '^application-port='
+    line: 'application-port={{ nexus_http_port }}'
+
+#Copy nexus.properties template to $app-dir/etc to change 
+#the listening port to 8080
+#- name: Copy network configuration file to override default network settings
+#  template:
+#   src: nexus.properties.j2
+#    dest: '{{ nexus_home }}/{{ nexus_app_dir }}/etc/nexus.properties'
+
+
+# Set the Nexus environment variables
+- name: set NEXUS_HOME environment variable
+  lineinfile:
+    path: /etc/bashrc
+    line: 'export {{ export_nexus_home }}'
+
+
+#Add nexus user
+#Nexus OSS will run under this user
+- name: 'Create a specific user called {{ nexus_user }}, who controls Nexus manager'
+  user:
+    name: '{{ nexus_user }}'
+    comment: Very limited user that only controls Nexus manager
+
+#  Nexus Repository Manager runs with limited privileges of Nexus user
+- name: Configure Nexus  Repository Manager to run under {{ nexus_user }} user 
+  lineinfile:
+    path: '{{ nexus_home }}/{{ nexus_app_dir }}/bin/nexus.rc'
+    regexp: '^run_as_user='
+    line: 'run_as_user={{ nexus_user }}'
+
+#Change owner of Nexus Repository Manager directory to Nexus user
+- name: 'Change owner of Nexus Manager directory to {{ nexus_user }}'
+  file:
+    dest: '{{ nexus_home }}'
+    owner: '{{ nexus_user }}'
+    group: '{{ nexus_user }}'
+    mode: 0755
+    recurse: yes
+
+#Copy nexus.service template to /etc/systemd/system/ to enable 
+#running Nexus manager as a service that restarts after server reboots
+- name: Enable Nexus Manager to run as a systemd service 
+  template:
+    src: nexus.service.j2
+    dest: /etc/systemd/system/nexus.service
+    owner: '{{ nexus_user }}'
+    group: '{{ nexus_user }}'
+    mode: 0755
+  notify:
+    - Reload sytemd
+    - Enable Nexus service
+    - Start Nexus service
+
+
+
+...

@@ -1,0 +1,40 @@
+---
+# vars file for SonatypeNexus
+
+# Path to Vagrant synced folder
+synced_dir_path: /vagrant
+
+# install directory 
+usr_dir_path: /usr/local
+
+#Vars for Java configuration
+jdk_archive: jdk-8u181-linux-x64.tar.gz
+jdk_dir: jdk1.8.0_181
+java_home: '{{ usr_dir_path }}/{{ jdk_dir }}'
+jre_home: '{{ java_home }}/jre'
+export_java_home: 'JAVA_HOME={{ java_home }}'
+export_jre_home: 'JRE_HOME={{ jre_home }}'
+export_path_java: 'PATH=$PATH:{{ java_home }}/bin:{{ jre_home }}/bin'
+
+#Vars for Nexus Repository Manager 3 configuration
+nexus_archive: nexus-3.13.0-01-unix.tar.gz
+nexus_dir: nexus3
+nexus_home: '{{ usr_dir_path }}/{{ nexus_dir }}'
+nexus_app_dir: nexus-3.13.0-01
+nexus_data_dir: sonatype-work
+nexus_user: Nexus
+nexus_http_port: 8080
+export_nexus_home: 'NEXUS_HOME={{ nexus_home }}'
+
+#Apache server vars
+apache_home: /etc/httpd
+apache_httpd_conf: /etc/httpd/conf/httpd.conf
+apache_user: apache
+
+#TLS configuration vars
+tls_dir: '{{ apache_home }}/tls'
+tls_port: 443
+
+
+
+...

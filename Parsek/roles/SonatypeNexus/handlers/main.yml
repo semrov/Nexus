@@ -1,0 +1,53 @@
+---
+# handlers file for SonatypeNexus
+
+- name: Reload sytemd
+  command: systemctl daemon-reload
+
+- name: Enable Nexus service
+  service:
+    name: nexus.service
+    enabled: yes
+
+- name: Start Nexus service
+  service: 
+    name: nexus.service
+    state: started
+
+- name: Enable apache server
+  service:  
+    name: httpd
+    enabled: yes   
+
+- name: ApacheSyntaxChecker
+  block:
+  - command: apachectl configtest
+    register: syntax
+  - fail:
+      msg: 'Syntax error in {{ apache_httpd_conf }}'
+    when: syntax.output.find("Syntax OK") != -1
+
+- name: Start apache server
+  service: 
+    name: httpd
+    state: started  
+
+
+- name: Restart apache server
+  service: 
+    name: httpd
+    state: restarted 
+
+- name: Firewall reload rules
+  service: 
+    name: firewalld
+    state: reloaded 
+
+
+
+
+
+
+
+...
+
