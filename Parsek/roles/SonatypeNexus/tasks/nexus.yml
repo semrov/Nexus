@@ -20,13 +20,6 @@
     regexp: '^application-port='
     line: 'application-port={{ nexus_http_port }}'
 
-#Copy nexus.properties template to $app-dir/etc to change 
-#the listening port to 8080
-#- name: Copy network configuration file to override default network settings
-#  template:
-#   src: nexus.properties.j2
-#    dest: '{{ nexus_home }}/{{ nexus_app_dir }}/etc/nexus.properties'
-
 
 # Set the Nexus environment variables
 - name: set NEXUS_HOME environment variable
